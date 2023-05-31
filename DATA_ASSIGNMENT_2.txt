@@ -1,0 +1,1062 @@
+library(openxlsx)
+library(readxl)
+library(car)
+library(moments)
+library(broom)
+library(DT)
+library(htmltools)
+library(htmlwidgets)
+library(lmtest)
+library(car)
+
+
+
+data <- read.csv("C:/Users/kanis/Desktop/Econometrics Data Assignment-1/Econometrics Data Assignment-1/Groundwater Quality/ZIP/7065/NDAP_REPORT_7065.csv")
+View(data)
+
+data$district_year <- sprintf("%s%d", data$District, data$YearCode)
+
+new_data <- subset(data, !is.na(District.LGD.Code))
+new_data <- subset(new_data, (District.LGD.Code) != '0')
+View(new_data)
+
+NDPdata <- read.csv("C:/Users/kanis/Desktop/Econometrics Data Assignment-1/Econometrics Data Assignment-1/HBS_Table_No._06___Net_State_Domestic_Product_at_Factor_Cost_-_State-Wise_(at_Constant_Prices).xlsx - Report 1.csv")
+View(NDPdata)
+
+NDPdata[] <- lapply(NDPdata, toupper)
+
+colnames(NDPdata)
+
+
+NDPdata$YEAR <- substr(NDPdata$YEAR, 1, 4)
+
+
+View(NDPdata)
+
+
+new_data$State <- toupper(new_data$State)
+new_data <- new_data[order(new_data$State),]
+
+New_vector <- vector()
+new_data$sdp <- apply(new_data, 1, function(row) {
+  year <- row["YearCode"]
+  state <- toupper(gsub("\\s+", ".", row["State"]))
+  sdp <- NDPdata[NDPdata$YEAR == year, state][1]
+  New_vector <- c(New_vector,sdp)
+  return(New_vector)
+})
+
+
+Ginidata <- read.csv("C:/Users/kanis/Desktop/Econometrics Data Assignment-1/Econometrics Data Assignment-1/Gini_Index.csv")
+View(Ginidata)
+
+names(new_data)
+names(Ginidata)
+
+
+Ginidata <- Ginidata[order(Ginidata$District),]
+new_data <- new_data[order(new_data$District),]
+
+
+dim(new_data)
+newdata <- merge(x = new_data, y = Ginidata, by = "District")
+dim(newdata)
+View(newdata)
+
+newdata <- newdata[order(newdata$State),]
+
+newdata[is.na(newdata)] <- ""
+
+newdata[, c("Amount.of.Arsenic", "Amount.of.carbonate", "Amount.of.Calcium", "Amount.of.Chloride",
+            "Amount.of.Electrical.Conductivity", "Amount.of.Fluorine", "Amount.of.Iron",
+            "Amount.of.Hydrogencarbonate", "Amount.of.Potassium", "Amount.of.Magnesium",
+            "Amount.of.Nitrate", "Amount.of.Sodium", "Percentage.of.Sodium",
+            "Amount.of.Phosphate.Ion", "Amount.of.Residual.Sodium.Carbonate",
+            "Amount.of.Sodium.absorption.ratio", "Amount.of.Sulfate",
+            "Amount.of.Silicon.dioxide", "Amount.of.Hardness.Total",
+            "Amount.of.Alkalinity.Total", "Amount.of.Total.Dissolved.Solids",
+            "Amount.of.Potential.of.Hydrogen","Gini","sdp")] <- 
+  lapply(newdata[, c("Amount.of.Arsenic", "Amount.of.carbonate", "Amount.of.Calcium", "Amount.of.Chloride",
+                     "Amount.of.Electrical.Conductivity", "Amount.of.Fluorine", "Amount.of.Iron",
+                     "Amount.of.Hydrogencarbonate", "Amount.of.Potassium", "Amount.of.Magnesium",
+                     "Amount.of.Nitrate", "Amount.of.Sodium", "Percentage.of.Sodium",
+                     "Amount.of.Phosphate.Ion", "Amount.of.Residual.Sodium.Carbonate",
+                     "Amount.of.Sodium.absorption.ratio", "Amount.of.Sulfate",
+                     "Amount.of.Silicon.dioxide", "Amount.of.Hardness.Total",
+                     "Amount.of.Alkalinity.Total", "Amount.of.Total.Dissolved.Solids",
+                     "Amount.of.Potential.of.Hydrogen","Gini","sdp")], as.numeric)
+
+write.csv(newdata, "DATA_MERGED.csv", row.names = FALSE)
+
+ch_lm <- lm(formula = Amount.of.Chloride ~ sdp, data = newdata)
+summary(ch_lm)
+
+ch_lm_1 <- lm(Amount.of.Chloride ~ newdata$sdp + I(sdp^2) + I(sdp^3) + Gini, data = newdata)
+summary(ch_lm_1)
+
+
+ch_lm_table <- datatable(
+  summary(ch_lm)$coefficients, 
+  options = list(pageLength = 10, 
+                 lengthMenu = c(10, 20, 50),
+                 dom = 'tip')
+)
+
+
+ch_lm_1_table <- datatable(
+  summary(ch_lm_1)$coefficients, 
+  options = list(pageLength = 10, 
+                 lengthMenu = c(10, 20, 50),
+                 dom = 'tip')
+)
+
+
+widget <- htmlwidgets::prependContent(
+  ch_lm_table, 
+  ch_lm_1_table
+)
+
+
+output_dir <- "C:/Users/kanis/Desktop/Econometrics Data Assignment-1/Econometrics Data Assignment-1"
+output_file <- file.path(output_dir, "regression_tables.html")
+
+
+htmlwidgets::saveWidget(widget, file = output_file)
+
+library(ggplot2)
+
+boxplot(newdata$Amount.of.Arsenic, main = "Amount.of.Arsenic",
+        xlab = "Units",
+        ylab = "Amount.of.Arsenic",
+        col = "blue",
+        border = "black")
+boxplot(newdata$Amount.of.carbonate,main="Amount.of.carbonate",
+        xlab = "Units",
+        ylab = "Amount.of.carbonate",
+        col = "blue",
+        border = "black")
+boxplot(newdata$Amount.of.Calcium, main="Amount.of.Calcium",
+        xlab="Units",
+        ylab="Amount.of.Calcium",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Chloride, main="Amount.of.Chloride",
+        xlab="Units",
+        ylab="Amount.of.Chloride",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Electrical.Conductivity, main="Amount.of.Electrical.Conductivity",
+        xlab="Units",
+        ylab="Amount.of.Electrical.Conductivity",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Fluorine, main="Amount.of.Flourine",
+        xlab="Units",
+        ylab="Amount.of.Flourine",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Iron, main="Amount.of.Iron",
+        xlab="Units",
+        ylab="Amount.of.Iron",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Hydrogencarbonate,
+        xlab="Units",
+        ylab="Amount.of.Hydrogencarbonate",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Potassium, main="Amount.of.Pottasium",
+        xlab="Units",
+        ylab="Amount.of.Pottasium",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Magnesium, main="Amount.of.Magnesium",
+        xlab="Units",
+        ylab="Amount.of.Magnesium",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Nitrate, main="Amount.of.Nitrate",
+        xlab="Units",
+        ylab="Amount.of.Nitrate",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Sodium, main="Amount.of.Sodium",
+        xlab="Units",
+        ylab="Amount.of.Sodium",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Phosphate.Ion, main="Amount.of.Phosphate",
+        xlab="Units",
+        ylab="Amount.of.Phosphate",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Residual.Sodium.Carbonate,main="Amount.of.Residual.Sodium.Carbonate",
+        xlab="Units",
+        ylab="Amount.of.Residual.Sodium.Carbonate",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Sodium.absorption.ratio,main="Amount.of.Sodium.absorption.ratio",
+        xlab="Units",
+        ylab="Amount.of.Sodium.absorption.ratio",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Sulfate,main="Amount.of.Sulfate",
+        xlab="Units",
+        ylab="Amount.of.Sulfate",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Silicon.dioxide,main="Amount.of.Silicon.dioxide",
+        xlab="Units",
+        ylab="Amount.of.Silicon.dioxide",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Hardness.Total,main="Amount.of.Hardness.Total",
+        xlab="Units",
+        ylab="Amount.of.Hardness.Total",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Alkalinity.Total,main="Amount.of.Hardness.Total",
+        xlab="Units",
+        ylab="Amount.of.Hardness.Total",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Total.Dissolved.Solids,main="Amount.of.Total.Dissolved.Solids",
+        xlab="Units",
+        ylab="Amount.of.Total.Dissolved.Solids",
+        col="blue",
+        border="black")
+boxplot(newdata$Amount.of.Potential.of.Hydrogen, main="Amount.of.Potential.of.Hydrogen",
+        xlab="Units",
+        ylab="Amount.of.Potential.of.Hydrogen",
+        col="blue",
+        border="black")
+
+newdata$Amount.of.Arsenic <- newdata$Amount.of.Arsenic / 100
+newdata$Amount.of.carbonate <- newdata$Amount.of.carbonate / 100
+newdata$Amount.of.Calcium <- newdata$Amount.of.Calcium / 100
+newdata$Amount.of.Chloride <- newdata$Amount.of.Chloride / 100
+newdata$Amount.of.Electrical.Conductivity <- newdata$Amount.of.Electrical.Conductivity / 100
+newdata$Amount.of.Fluorine <- newdata$Amount.of.Fluorine / 100
+newdata$Amount.of.Iron <- newdata$Amount.of.Iron / 100
+newdata$Amount.of.Hydrogencarbonate <- newdata$Amount.of.Hydrogencarbonate / 100
+newdata$Amount.of.Potassium <- newdata$Amount.of.Potassium / 100
+newdata$Amount.of.Magnesium <- newdata$Amount.of.Magnesium / 100
+newdata$Amount.of.Nitrate <- newdata$Amount.of.Nitrate / 100
+newdata$Amount.of.Sodium <- newdata$Amount.of.Sodium / 100
+newdata$Amount.of.Phosphate.Ion <- newdata$Amount.of.Phosphate.Ion / 100 
+newdata$Amount.of.Residual.Sodium.Carbonate <- newdata$Amount.of.Residual.Sodium.Carbonate / 100
+newdata$Amount.of.Sodium.absorption.ratio <- newdata$Amount.of.Sodium.absorption.ratio / 100 
+newdata$Amount.of.Sulfate <- newdata$Amount.of.Sulfate / 100
+newdata$Amount.of.Silicon.dioxide <- newdata$Amount.of.Silicon.dioxide / 100
+newdata$Amount.of.Hardness.Total <- newdata$Amount.of.Hardness.Total / 100
+newdata$Amount.of.Alkalinity.Total <- newdata$Amount.of.Alkalinity.Total / 100
+newdata$Amount.of.Total.Dissolved.Solids <- newdata$Amount.of.Total.Dissolved.Solids / 100
+newdata$Amount.of.Potential.of.Hydrogen <- newdata$Amount.of.Potential.of.Hydrogen / 100
+
+
+
+newdata$sdp[is.na(newdata$sdp) | !is.finite(newdata$sdp)] <- 0
+newdata$Amount.of.Chloride[is.na(newdata$Amount.of.Chloride) | !is.finite(newdata$Amount.of.Chloride)] <- 0
+
+
+newdata$sdp <- newdata$sdp 
+
+
+chloride_lm <- lm(formula = Amount.of.Chloride ~ sdp, data = newdata)
+
+
+residual <- resid(chloride_lm)
+
+
+sum(residual)
+
+ch_lm <- lm(formula = Amount.of.Chloride ~ sdp, data = newdata,na.action = na.exclude)
+
+
+ggplot(newdata, aes(x = sdp, y = residual)) + 
+  geom_point() +
+  geom_smooth(method = "lm") + 
+  ggtitle("Graph 1") + 
+  labs(y = "Residuals", x = "SDP")
+
+sum(residual)
+
+ggplot(newdata, aes(x = sdp, y = Amount.of.Chloride)) + 
+  geom_point() +
+  geom_smooth(method = "lm") + 
+  ggtitle("Graph 2") + 
+  labs(y = "Amount of chloride", x = "SDP")
+
+
+
+
+
+pred_df <- data.frame(sdp = newdata$sdp, Predicted = predict(ch_lm))
+plot(newdata$Amount.of.Chloride, pred_df$Predicted, xlab = "Observed Amount of chloride", ylab = "Predicted Amount of chloride")
+abline(a = 0, b = 1, col = "red", lty = "dashed")
+
+
+hist(residual, breaks = 20, main = "Histogram of Residuals", xlab = "Residuals")
+
+cat("Sum of residual values:", sum(residual), "\n")
+
+
+View(table(newdata$Amount.of.Arsenic))
+View(table(newdata$Amount.of.carbonate))
+View(table(newdata$Amount.of.Calcium))
+View(table(newdata$Amount.of.Chloride))
+View(table(newdata$Amount.of.Electrical.Conductivity))
+View(table(newdata$Amount.of.Fluorine))
+View(table(newdata$Amount.of.Iron))
+View(table(newdata$Amount.of.Hydrogencarbonate))
+View(table(newdata$Amount.of.Potassium))
+View(table(newdata$Amount.of.Magnesium))
+View(table(newdata$Amount.of.Nitrate))
+View(table(newdata$Amount.of.Sodium))
+View(table(newdata$Amount.of.Phosphate.Ion))
+View(table(newdata$Amount.of.Residual.Sodium.Carbonate))
+View(table(newdata$Amount.of.Sodium.absorption.ratio))
+View(table(newdata$Amount.of.Sulfate))
+View(table(newdata$Amount.of.Silicon.dioxide))
+View(table(newdata$Amount.of.Hardness.Total))
+View(table(newdata$Amount.of.Alkalinity.Total))
+View(table(newdata$Amount.of.Total.Dissolved.Solids))
+View(table(newdata$Amount.of.Potential.of.Hydrogen))
+
+#1
+newdata$Amount.of.Arsenic <- as.numeric(newdata$Amount.of.Arsenic)
+arsenic_lm <- lm(formula = Amount.of.Arsenic~ sdp, data =newdata)
+#2
+newdata$Amount.of.carbonate <- as.numeric(newdata$Amount.of.carbonate)
+carbonate_lm <- lm(formula = Amount.of.carbonate~ sdp, data =newdata)
+#3
+newdata$Amount.of.Calcium <- as.numeric(newdata$Amount.of.Calcium)
+calcium_lm <- lm(formula = Amount.of.Calcium~ sdp, data =newdata)
+#4
+newdata$Amount.of.Chloride <- as.numeric(newdata$Amount.of.Chloride)
+chloride_lm <- lm(formula = Amount.of.Chloride~ sdp, data =newdata)
+#5
+newdata$Amount.of.Electrical.Conductivity <- as.numeric(newdata$Amount.of.Electrical.Conductivity)
+electrical_lm <- lm(formula = Amount.of.Electrical.Conductivity~ sdp, data =newdata)
+#6
+newdata$Amount.of.Fluorine <- as.numeric(newdata$Amount.of.Fluorine)
+flourine_lm <- lm(formula = Amount.of.Fluorine~ sdp, data =newdata)
+#7
+newdata$Amount.of.Iron <- as.numeric(newdata$Amount.of.Iron)
+iron_lm <- lm(formula = Amount.of.Iron~ sdp, data =newdata)
+#8
+newdata$Amount.of.Hydrogencarbonate <- as.numeric(newdata$Amount.of.Hydrogencarbonate)
+Hydrogencarbonate_lm <- lm(formula = Amount.of.Hydrogencarbonate~ sdp, data =newdata)
+#9
+newdata$Amount.of.Potassium <- as.numeric(newdata$Amount.of.Potassium)
+pottasium_lm <- lm(formula = Amount.of.Potassium~ sdp, data =newdata)
+#10
+newdata$Amount.of.Magnesium <- as.numeric(newdata$Amount.of.Magnesium)
+magnesium_lm <- lm(formula = Amount.of.Magnesium~ sdp, data =newdata)
+#11
+newdata$Amount.of.Nitrate <- as.numeric(newdata$Amount.of.Nitrate)
+nitrate_lm <- lm(formula = Amount.of.Nitrate~ sdp, data =newdata)
+#12
+newdata$Amount.of.Sodium <- as.numeric(newdata$Amount.of.Sodium)
+sodium_lm <- lm(formula = Amount.of.Sodium~ sdp, data =newdata)
+#15
+newdata$Amount.of.Phosphate.Ion <- as.numeric(newdata$Amount.of.Phosphate.Ion)
+phosphateIon_lm <- lm(formula = Amount.of.Phosphate.Ion~ sdp, data =newdata)
+#16
+newdata$Amount.of.Residual.Sodium.Carbonate <- as.numeric(newdata$Amount.of.Residual.Sodium.Carbonate)
+residualSodiumCarbonate_lm <- lm(formula = Amount.of.Residual.Sodium.Carbonate~ sdp, data =newdata)
+#17
+newdata$Amount.of.Sodium.absorption.ratio <- as.numeric(newdata$Amount.of.Sodium.absorption.ratio)
+sodiumAbsorption_lm <- lm(formula = Amount.of.Sodium.absorption.ratio~ sdp, data =newdata)
+#18
+newdata$Amount.of.Sulfate <- as.numeric(newdata$Amount.of.Sulfate)
+sulphate_lm <- lm(formula = Amount.of.Sulfate~ sdp, data =newdata)
+#19
+newdata$Amount.of.Silicon.dioxide <- as.numeric(newdata$Amount.of.Silicon.dioxide)
+silicon_lm <- lm(formula = Amount.of.Silicon.dioxide~ sdp, data =newdata)
+#20
+newdata$Amount.of.Hardness.Total <- as.numeric(newdata$Amount.of.Hardness.Total)
+hardness_lm <- lm(formula = Amount.of.Hardness.Total~ sdp, data =newdata)
+#21
+newdata$Amount.of.Alkalinity.Total <- as.numeric(newdata$Amount.of.Alkalinity.Total)
+alkaline_lm <- lm(formula = Amount.of.Alkalinity.Total~ sdp, data =newdata)
+#22
+newdata$Amount.of.Total.Dissolved.Solids <- as.numeric(newdata$Amount.of.Total.Dissolved.Solids)
+DissolvedSolids_lm <- lm(formula = Amount.of.Total.Dissolved.Solids~ sdp, data =newdata)
+#21
+newdata$Amount.of.Potential.of.Hydrogen <- as.numeric(newdata$Amount.of.Potential.of.Hydrogen)
+PotentialHydrogen_lm <- lm(formula = Amount.of.Potential.of.Hydrogen~ sdp, data =newdata)
+
+
+hist(newdata$Amount.of.Arsenic, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.carbonate, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Calcium, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Chloride, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Electrical.Conductivity, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Fluorine, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Iron, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Hydrogencarbonate, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Potassium, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Magnesium, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Nitrate, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Sodium, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Phosphate.Ion, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Residual.Sodium.Carbonate, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Sodium.absorption.ratio, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Sulfate, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Silicon.dioxide, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Hardness.Total, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Alkalinity.Total, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Total.Dissolved.Solids, main = "Residuals Histogram", freq = TRUE)
+hist(newdata$Amount.of.Potential.of.Hydrogen, main = "Residuals Histogram", freq = TRUE)
+
+outliers_Arsenic <- boxplot(newdata$Amount.of.Arsenic)$out
+outliers_carbonate <- boxplot(newdata$Amount.of.carbonate)$out
+outliers_Calcium <- boxplot(newdata$Amount.of.Calcium)$out
+outliers_Chloride <- boxplot(newdata$Amount.of.Chloride)$out
+outliers_ElectricalCOnductivity <- boxplot(newdata$Amount.of.Electrical.Conductivity)$out
+outliers_Fluorine <- boxplot(newdata$Amount.of.Fluorine)$out
+outliers_Iron <- boxplot(newdata$Amount.of.Iron)$out
+outliers_Hydrogencarbonate <- boxplot(newdata$Amount.of.Hydrogencarbonate)$out
+outliers_Potassium <- boxplot(newdata$Amount.of.Potassium)$out
+outliers_Magnesium <- boxplot(newdata$Amount.of.Magnesium)$out
+outliers_Nitrate <- boxplot(newdata$Amount.of.Nitrate)$out
+outliers_Sodium <- boxplot(newdata$Amount.of.Sodium)$out
+outliers_PhosphateIon <- boxplot(newdata$Amount.of.Phosphate.Ion)$out
+outliers_SodiumCarbonate <- boxplot(newdata$Amount.of.Residual.Sodium.Carbonate)$out
+outliers_SodiumAbsorptionRatio <- boxplot(newdata$Amount.of.Sodium.absorption.ratio)$out
+outliers_Sulfate <- boxplot(newdata$Amount.of.Sulfate)$out
+outliers_SiliconDioxide <- boxplot(newdata$Amount.of.Silicon.dioxide)$out
+outliers_HardnessTotal <- boxplot(newdata$Amount.of.Hardness.Total)$out
+outliers_AlkalinityTotal <- boxplot(newdata$Amount.of.Alkalinity.Total)$out
+outliers_TotalDissolvedSolids <- boxplot(newdata$Amount.of.Total.Dissolved.Solids)$out
+outliers_PotentialofHydrogen <- boxplot(newdata$Amount.of.Potential.of.Hydrogen)$out
+
+plot(density(na.omit(newdata$Amount.of.Arsenic)))
+plot(density(na.omit(newdata$Amount.of.carbonate)))
+plot(density(na.omit(newdata$Amount.of.Calcium)))
+plot(density(na.omit(newdata$Amount.of.Chloride)))
+plot(density(na.omit(newdata$Amount.of.Electrical.Conductivity)))
+plot(density(na.omit(newdata$Amount.of.Fluorine)))
+plot(density(na.omit(newdata$Amount.of.Iron)))
+plot(density(na.omit(newdata$Amount.of.Hydrogencarbonate)))
+plot(density(na.omit(newdata$Amount.of.Potassium)))
+plot(density(na.omit(newdata$Amount.of.Magnesium)))
+plot(density(na.omit(newdata$Amount.of.Nitrate)))
+plot(density(na.omit(newdata$Amount.of.Sodium)))
+plot(density(na.omit(newdata$Amount.of.Phosphate.Ion)))
+plot(density(na.omit(newdata$Amount.of.Residual.Sodium.Carbonate)))
+plot(density(na.omit(newdata$Amount.of.Sodium.absorption.ratio)))
+plot(density(na.omit(newdata$Amount.of.Sulfate)))
+plot(density(na.omit(newdata$Amount.of.Silicon.dioxide)))
+plot(density(na.omit(newdata$Amount.of.Hardness.Total)))
+plot(density(na.omit(newdata$Amount.of.Alkalinity.Total)))
+plot(density(na.omit(newdata$Amount.of.Total.Dissolved.Solids)))
+plot(density(na.omit(newdata$Amount.of.Potential.of.Hydrogen)))
+
+
+newdata$Amount.of.Arsenic[is.na(newdata$Amount.of.Arsenic)] <- 0
+newdata$Amount.of.carbonate[is.na(newdata$Amount.of.carbonate)] <- 0
+newdata$Amount.of.Calcium[is.na(newdata$Amount.of.Calcium)] <- 0
+newdata$Amount.of.Chloride[is.na(newdata$Amount.of.Chloride)] <- 0
+newdata$Amount.of.Electrical.Conductivity[is.na(newdata$Amount.of.Electrical.Conductivity)] <- 0
+newdata$Amount.of.Fluorine[is.na(newdata$Amount.of.Fluorine)] <- 0
+newdata$Amount.of.Hydrogencarbonate[is.na(newdata$Amount.of.Hydrogencarbonate)] <- 0
+newdata$Amount.of.Potassium[is.na(newdata$Amount.of.Potassium)] <- 0
+newdata$Amount.of.Magnesium[is.na(newdata$Amount.of.Magnesium)] <- 0
+newdata$Amount.of.Nitrate[is.na(newdata$Amount.of.Nitrate)] <- 0
+newdata$Amount.of.Sodium[is.na(newdata$Amount.of.Sodium)] <- 0
+newdata$Amount.of.Percentage.of.Sodium[is.na(newdata$Percentage.of.Sodium)] <- 0
+newdata$Amount.of.Phosphate.Ion[is.na(newdata$Amount.of.Phosphate.Ion)] <- 0
+newdata$Amount.of.Residual.Sodium.Carbonate[is.na(newdata$Amount.of.Residual.Sodium.Carbonate)] <- 0
+newdata$Amount.of.Sodium.absorption.ratio[is.na(newdata$Amount.of.Sodium.absorption.ratio)] <- 0
+newdata$Amount.of.Sulfate[is.na(newdata$Amount.of.Sulfate)] <- 0
+newdata$Amount.of.Silicon.dioxide[is.na(newdata$Amount.of.Silicon.dioxide)] <- 0
+newdata$Amount.of.Hardness.Total[is.na(newdata$Amount.of.Hardness.Total)] <- 0
+newdata$Amount.of.Alkalinity.Total[is.na(newdata$Amount.of.Alkalinity.Total)] <- 0
+newdata$Amount.of.Potential.of.Hydrogen[is.na(newdata$Amount.of.Potential.of.Hydrogen)] <- 0
+newdata$Amount.of.Total.Dissolved.Solids[is.na(newdata$Amount.of.Total.Dissolved.Solids)] <- 0
+newdata$Amount.of.Iron[is.na(newdata$Amount.of.Iron)] <- 0
+newdata$Amount.of.Residual.Sodium.Carbonate[is.na(newdata$Amount.of.Percentage.of.Sodium)] <- 0
+
+skewness(newdata$Amount.of.Arsenic)
+skewness(newdata$Amount.of.carbonate)
+skewness(newdata$Amount.of.Calcium)
+skewness(newdata$Amount.of.Chloride)
+skewness(newdata$Amount.of.Electrical.Conductivity)
+skewness(newdata$Amount.of.Fluorine)
+skewness(newdata$Amount.of.Iron)
+skewness(newdata$Amount.of.Hydrogencarbonate)
+skewness(newdata$Amount.of.Potassium)
+skewness(newdata$Amount.of.Magnesium)
+skewness(newdata$Amount.of.Nitrate)
+skewness(newdata$Amount.of.Sodium)
+skewness(newdata$Amount.of.Phosphate.Ion)
+skewness(newdata$Amount.of.Residual.Sodium.Carbonate)
+skewness(newdata$Amount.of.Sodium.absorption.ratio)
+skewness(newdata$Amount.of.Sulfate)
+skewness(newdata$Amount.of.Silicon.dioxide)
+skewness(newdata$Amount.of.Hardness.Total)
+skewness(newdata$Amount.of.Alkalinity.Total)
+skewness(newdata$Amount.of.Total.Dissolved.Solids)
+skewness(newdata$Amount.of.Potential.of.Hydrogen)
+
+################################################################################################################################################################################################################################
+data_final <- read.csv("C:/Users/harsh/OneDrive/Documents/Econometrics/19_DATA_MERGED (2).csv")
+data_final <- data_final[ ,-c(38:38)]
+View(data_final)
+data_final <- data_final[data_final$YearCode == "2018", ]
+
+View(data_final)
+
+# Election-Victory Margin
+
+win <-read.csv("C:/Users/harsh/OneDrive/Documents/Econometrics/winningElectioncsv.csv")
+View(win)
+
+colnames(win) <- win[3, ]
+win <- win[-c(1:3), ]
+win$State <- toupper(win$State)
+newdataW <- merge(x = data_final, y = win, by = "State")
+newdataW$sdp_numeric <- as.numeric(newdataW$sdp)
+View(newdataW)
+# newdataW[is.na(newdataW)] <- 0
+View(newdataW)
+
+newdataW <- newdataW[ ,-c(39:46)]
+
+# win_lm <- lm(Amount.of.Chloride ~ sdp_numeric + I(sdp_numeric^2) + I(sdp_numeric^3) + Gini + Winning_Margin, data = newdataW)
+# summary(win_lm)
+# newdataW <- newdataW[newdataW$Amount.of.Chloride != 0,]
+# win_1m_log <- lm(log(Amount.of.Chloride) ~ sdp_numeric + I(sdp_numeric^2) + I(sdp_numeric^3) + Gini + Winning_Margin, data = newdataW)
+# summary(win_1m_log)
+# newdataW$Winning_Margin <- as.numeric(newdataW$Winning_Margin)
+# newdataW <- newdataW[newdataW$Winning_Margin != 0,]
+# newdataW <- newdataW[newdataW$Amount.of.Chloride != 0,]
+# win_1m_log_2 <- lm(Amount.of.Chloride ~ sdp_numeric + I(sdp_numeric^2) + I(sdp_numeric^3) + Gini+log(Winning_Margin), data = newdataW)
+# summary(win_1m_log_2)
+# win_1m_log_2 <- lm(log(Amount.of.Chloride) ~ sdp_numeric + I(sdp_numeric^2) + I(sdp_numeric^3) + Gini+log(Winning_Margin), data = newdataW)
+# # loglog_lm=win_1m_log_2 <- lm(log(Amount.of.Chloride) ~ sdp_numeric + I(sdp_numeric^2) + I(sdp_numeric^3) + Gini+log(f_numeric), data = newdataW)
+# summary(win_1m_log_2)
+
+# No. of Industries and Death
+
+# # Load death data from a csv file
+# death_data <- read.csv("D:/Econ d2/Death_2019_data.csv")
+# 
+# # Load main data from a csv file
+# main_data <- read.csv("D:/Econ d2/19_DATA_MERGED (2).csv")
+# 
+# merged_data <- merge(death_data, main_data, by.x = "kgistalukname", by.y = "District")
+
+
+
+#Death data
+deaths <- read.csv("C:/Users/harsh/OneDrive/Documents/Econometrics/Death_data.csv")
+View(deaths)
+deaths$State <- toupper(deaths$State)
+newdata_deaths <- merge(x = newdataW, y = deaths, by = "State")
+
+
+factories <- read.csv("C:/Users/harsh/OneDrive/Documents/Econometrics/Factory.csv")
+View(factories)
+
+factories$State <- toupper(factories$State)
+newdata_factories <- merge(x = newdata_deaths, y = factories, by = "State")
+# newdata_factories$Deaths <- as.numeric(newdata_factories$Deaths)
+View(newdata_factories)
+
+# is.na(newdata_factories$Deaths)
+
+
+# NO of political parties per unit seat in a state
+
+
+politicalpartiesnumber <- read.csv("C:/Users/harsh/OneDrive/Documents/Econometrics/No._of_political_parties.csv")
+View(politicalpartiesnumber)
+
+politicalpartiesnumber <- politicalpartiesnumber[ ,-c(3:26)]
+politicalpartiesnumber$State <- toupper(politicalpartiesnumber$State)
+politicalpartiesnumber$No..of.Political.Parties <- as.numeric(politicalpartiesnumber$No..of.Political.Parties)
+newdata_politicalparties <- merge(x = newdata_factories, y = politicalpartiesnumber, by = "State")
+View(newdata_politicalparties)
+
+newdata_politicalparties$No..of.Political.Parties <- as.numeric(newdata_politicalparties$No..of.Political.Parties)
+newdata_politicalparties$`NO. OF SEATS` <- as.numeric(newdata_politicalparties$`NO. OF SEATS`)
+newdata_politicalparties$Deaths <- as.numeric(newdata_politicalparties$Deaths)
+
+
+# newdata_politicalparties[is.na(newdata_politicalparties)] <- 0
+# newdata_politicalparties <- newdata_politicalparties[newdata_politicalparties$Deaths != 0,]
+# newdata_politicalparties <- newdata_politicalparties[newdata_politicalparties$Amount.of.Silicon.dioxide != 0,]
+
+newdata_politicalparties$Politicalparties_seat <- newdata_politicalparties$No..of.Political.Parties / newdata_politicalparties$`NO. OF SEATS`
+
+# newdata_politicalparties <- newdata_politicalparties[newdata_politicalparties$Deaths != 0,]
+
+newdata_politicalparties$Winning_Margin <- as.numeric(newdata_politicalparties$Winning_Margin)
+
+safetynet <- newdata_politicalparties
+
+politicalparties_lm <- lm((newdata_politicalparties$Amount.of.Silicon.dioxide) ~ newdata_politicalparties$sdp +I(newdata_politicalparties$sdp^2) + I(newdata_politicalparties$sdp^3) + newdata_politicalparties$Gini + (newdata_politicalparties$Politicalparties_seat) + (newdata_politicalparties$Factories) + (newdata_politicalparties$Winning_Margin) + (newdata_politicalparties$Deaths), data = newdata_politicalparties)
+summary(politicalparties_lm)
+
+write.csv(newdata_politicalparties, file = "Final_Data.csv", row.names = FALSE)
+# 
+# politicalparties_lm <- lm(newdata_politicalparties$Amount.of.Chloride ~ newdata_politicalparties$sdp +I(newdata_politicalparties$sdp^2) + I(newdata_politicalparties$sdp^3) + newdata_politicalparties$Gini + log(newdata_politicalparties$Politicalparties_seat), data = newdata_politicalparties)
+# summary(politicalparties_lm)
+# 
+# #newdataW <- na.omit(newdataW)
+# #max_val <- max(newdataW$Amount.of.Chloride, na.rm = TRUE)
+# 
+#newdataW$Amount.of.Chloride[!is.finite(newdataW$Amount.of.Chloride)] <- max_val
+# 
+# 
+# politicalparties_lm <- lm(log(newdata_politicalparties$Amount.of.Chloride) ~ newdata_politicalparties$sdp +I(newdata_politicalparties$sdp^2) + I(newdata_politicalparties$sdp^3) + newdata_politicalparties$Gini + log(newdata_politicalparties$Politicalparties_seat), data = newdata_politicalparties)
+# summary(politicalparties_lm)
+# 
+# politicalparties_lm <- lm(log(newdata_politicalparties$Amount.of.Chloride) ~ newdata_politicalparties$sdp +I(newdata_politicalparties$sdp^2) + I(newdata_politicalparties$sdp^3) + newdata_politicalparties$Gini + newdata_politicalparties$Politicatparties_seat, data = newdataW)
+# summary(politicalparties_lm)
+
+# 
+# #MLE Test
+# 
+# model <- glm((newdata_politicalparties$Amount.of.Silicon.dioxide) ~ newdata_politicalparties$sdp +I(newdata_politicalparties$sdp^2) + I(newdata_politicalparties$sdp^3) + newdata_politicalparties$Gini + (newdata_politicalparties$Politicalparties_seat) + (newdata_politicalparties$Factories) + (newdata_politicalparties$Winning_Margin) + (newdata_politicalparties$Deaths), data = newdata_politicalparties, family = gaussian(link = "identity"))
+# summary(model)
+# 
+# 
+# 
+# # Chow Test
+# 
+# plot(politicalparties_lm$fitted.values, politicalparties_lm$residuals)
+# 
+# install.packages("strucchange")
+# library(strucchange)
+# 
+# bp <- breakpoints((newdata_politicalparties$Amount.of.Silicon.dioxide) ~ newdata_politicalparties$Factories, h = 100)
+# summary(bp)
+# 
+# # Perform Chow test
+# chow <- Fstats((newdata_politicalparties$Amount.of.Silicon.dioxide) ~ newdata_politicalparties$sdp +I(newdata_politicalparties$sdp^2) + I(newdata_politicalparties$sdp^3) + newdata_politicalparties$Gini + (newdata_politicalparties$Politicalparties_seat) + (newdata_politicalparties$Factories) + (newdata_politicalparties$Winning_Margin) + (newdata_politicalparties$Deaths), data = newdata_politicalparties, breaks = 50)
+# summary(chow)
+# 
+# ###CHOWW TEST
+# library(strucchange)
+# 
+# 
+# sctest(newdata_politicalparties$Amount.of.Silicon.dioxide ~ newdata_politicalparties$Deaths , type = "Chow")
+# 
+# sctest(newdata_politicalparties$Amount.of.Silicon.dioxide ~ newdata_politicalparties$Politicalparties_seat , type = "Chow")
+# 
+# sctest(newdata_politicalparties$Amount.of.Silicon.dioxide ~ newdata_politicalparties$Winning_Margin , type = "Chow")
+# 
+# 
+# sctest(newdata_politicalparties$Amount.of.Silicon.dioxide ~ newdata_politicalparties$Factories , type = "Chow")
+# 
+# 
+# 
+# # Install the latest version of rlang
+# install.packages("rlang")
+# 
+# # Load the updated package
+# library(rlang)
+# 
+# 
+# library(caret)
+# 
+# # Set a random seed for reproducibility
+# set.seed(123)
+# 
+# # Split the data into 70% training and 30% testing
+# trainIndex <- createDataPartition(newdata_politicalparties$Amount.of.Silicon.dioxide, p = 0.7, list = FALSE)
+# train_data <- newdata_politicalparties[trainIndex,]
+# test_data <- newdata_politicalparties[-trainIndex,]
+
+
+
+# #Monte Carlo Test
+# 
+# model <- lm(Amount.of.Silicon.dioxide ~ sdp + I(sdp^2) + I(sdp^3) + Gini + Politicalparties_seat + Factories + Winning_Margin + Deaths, data = newdata_politicalparties)
+# 
+# generate_data <- function(n) {
+#   # n is the sample size
+#   sdp <- runif(n, min = min(newdata_politicalparties$sdp), max = max(newdata_politicalparties$sdp))
+#   gini <- runif(n, min = min(newdata_politicalparties$Gini), max = max(newdata_politicalparties$Gini))
+#   politicalparties_seat <- sample(newdata_politicalparties$Politicalparties_seat, n, replace = TRUE)
+#   factories <- sample(newdata_politicalparties$Factories, n, replace = TRUE)
+#   winning_margin <- sample(newdata_politicalparties$Winning_Margin, n, replace = TRUE)
+#   deaths <- sample(newdata_politicalparties$Deaths, n, replace = TRUE)
+#   y <- rnorm(n, mean = mean(newdata_politicalparties$Amount.of.Silicon.dioxide), sd = sd(newdata_politicalparties$Amount.of.Silicon.dioxide))
+#   data.frame(sdp, gini, politicalparties_seat, factories, winning_margin, deaths, y)
+# }
+# 
+# # example of generating 1000 random samples of size 100
+# sim_data <- simulate(model, nsim=1000, type="data")
+# 
+# # predict response variable for new data using simulated coefficients
+# predicted <- lapply(sim_results, function(model) {
+#   predict(model, newdata=newdata_politicalparties)
+# })
+# 
+# 
+# # apply the MLRM model to each simulated dataset
+# sim_results <- lapply(sim_data, function(data) {
+#   data <- as.data.frame(data) # ensure data is in the right format
+#   lm(Amount.of.Silicon.dioxide ~ sdp + I(sdp^2) + I(sdp^3) + Gini + Politicalparties_seat + Factories + Winning_Margin + Deaths, data=newdata_politicalparties)
+# })
+# 
+# # example of extracting the coefficients of interest (e.g., the coefficient for sdp)
+# sim_coefs <- sapply(sim_results, function(model) coef(model)["Winning_Margin"])
+# 
+# # example of calculating the p-value for the coefficient for sdp
+# p_value <- mean(sim_coefs <= coef(model)["Winning_Margin"])
+# View(p_value)
+
+
+
+
+
+# 
+# library(pacman) # wraps library and package related functions to improve workflow 
+# library(data.table)
+# library(stargazer)
+# pacman::p_load(data.table, fixest, stargazer, dplyr)
+# 
+# # Load newdata_politicalparties dataset
+# data(newdata_politicalparties)
+# 
+# ## Parameters and seed
+# set.seed(1)  # Seed
+# n <- nrow(newdata_politicalparties)     # Sample size
+# M <- 500      # Number of experiments/iterations
+# 
+# ## Storage vectors
+# coeffs_DT <- matrix(0, ncol = M, nrow = 9)
+# 
+# ## Begin Monte Carlo
+# 
+# for (i in 1:M){ #  M is the number of iterations
+#   
+#   # Generate data
+#   U_i <- rnorm(n, mean = 0, sd = 2) # Error
+#   sdp_i <- newdata_politicalparties$sdp
+#   gini_i <- newdata_politicalparties$Gini
+#   parties_seat_i <- newdata_politicalparties$Politicalparties_seat
+#   factories_i <- newdata_politicalparties$Factories
+#   margin_i <- newdata_politicalparties$Winning_Margin
+#   deaths_i <- newdata_politicalparties$Deaths
+#   
+#   Y_i <- sdp_i + I(sdp_i^2) + I(sdp_i^3) + gini_i + parties_seat_i + factories_i + margin_i + deaths_i
+#   
+#   # Formulate data.table
+#   data_i <- data.table(Y = Y_i, sdp = sdp_i, gini = gini_i, parties_seat = parties_seat_i,
+#                        factories = factories_i, margin = margin_i, deaths = deaths_i)
+#   
+#   # Run regressions
+#   ols_i <- fixest::feols(data = data_i, Y ~ sdp + I(sdp^2) + I(sdp^3) + gini + parties_seat + factories + margin + deaths)
+#   
+#   # Extract coefficients and save
+#   coeffs_DT[, i] <- ols_i$coefficients
+#   
+# }
+# 
+# # Summary statistics
+# colnames(coeffs_DT) <- paste0("Iteration", 1:M)
+# estimates_DT <- data.table(t(coeffs_DT))
+# estimates_DT
+# estimates_DT <- na.omit(estimates_DT)
+# 
+# # stargazer(as.data.table(estimates_DT[, c("sdp", "I(sdp^2)", "I(sdp^3)", "gini", "parties_seat", "factories", "margin", "deaths")]), type = "text")
+# 
+# # stargazer(as.data.table(estimates_DT[, c("sdp", "I(sdp^2)", "I(sdp^3)", "gini", "parties_seat", "factories", "margin", "deaths")]), type = "text", omit = TRUE)
+# # estimates_DT <- as.data.table(estimates_DT)
+# # stargazer(estimates_DT[, c("sdp", "I(sdp^2)", "I(sdp^3)", "gini", "parties_seat", "factories", "margin", "deaths")], type = "text", omit = TRUE)
+# 
+# library(stargazer)
+# stargazer(estimates_DT, type = "text", 
+#           keep.stat = c("n", "adj.rsq", "rmse"), 
+#           title = "Regression Results", 
+#           dep.var.labels.include = FALSE,
+#           column.labels = c("SDP", "SDP^2", "SDP^3", "Gini", "Political Parties Seat", "Factories", "Winning Margin", "Deaths"), 
+#           covariate.labels = c("SDP", "SDP^2", "SDP^3", "Gini", "Political Parties Seat", "Factories", "Winning Margin", "Deaths"))
+# 
+# 
+# # stargazer(estimates_DT[, c("sdp", "I(sdp^2)", "I(sdp^3)", "gini", "parties_seat", "factories", "margin", "deaths")], type = "text")
+# class(estimates_DT)
+# # Visual inspection
+# hist(estimates_DT[, "sdp"], xlim = c(-2,2))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### MLE TEST ###
+
+newdata_politicalparties$sdp_2 <- newdata_politicalparties$sdp ^ 2
+newdata_politicalparties$sdp_3 <- newdata_politicalparties$sdp ^ 3
+
+View(newdata_politicalparties)
+
+newdata_politicalparties <- newdata_politicalparties[complete.cases(newdata_politicalparties), ]
+
+data<-newdata_politicalparties
+
+
+model <- lm((Amount.of.Silicon.dioxide) ~ sdp + sdp_2 + sdp_3 + Gini + Politicalparties_seat + Factories + Winning_Margin + Deaths, data = data)
+summary(model)
+
+# Define log-likelihood function
+logLikelihood_lm <- function(beta, data) {
+  # Extract variables from data
+  X <- data[, c("sdp", "Gini", "Politicalparties_seat", "Factories", "Winning_Margin", "Deaths", "sdp_2", "sdp_3")]
+  y <- data$Amount.of.Silicon.dioxide
+  
+  # Calculate linear predictor and residuals
+  mu <- predict(model, newdata = newdata_politicalparties)
+  epsilon <- y - mu
+  
+  # Calculate log-likelihood
+  n <- length(y)
+  sigma <- exp(beta[length(beta)]) # transform last parameter to ensure positivity
+  logLik <- -n/2*log(2*pi*sigma^2) - sum(epsilon^2)/(2*sigma^2)
+  
+  return(-logLik)
+}
+
+# Set starting values for coefficients
+
+startValues <- c(coef(model)[-1], log(sd(resid(model))))
+
+# Use maximum likelihood estimation to estimate coefficients assuming a normal distribution
+fit_lm <- optim(par = startValues, fn = logLikelihood_lm, data = newdata_politicalparties, method = "BFGS")
+
+# Print estimated coefficients
+coef_lm <- c(fit_lm$par[1:8]) # transform last parameter back to original scale
+names(coef_lm) <- c("sdp", "sdp_2", "sdp_3", "Gini", "Politicalparties_seat", "Factories", "Winnning_Margin", "Deaths")
+print(coef_lm)
+
+
+
+
+
+
+
+
+
+
+newdata_politicalparties <- safetynet
+
+### Hypothesis testing ###
+
+library(strucchange)
+
+params = newdata_politicalparties$Amount.of.Silicon.dioxide ~ newdata_politicalparties$Deaths + newdata_politicalparties$Politicalparties_seat + newdata_politicalparties$Winning_Margin + newdata_politicalparties$Factories
+
+sctest(params, type = "Chow")
+
+sctest(newdata_politicalparties$Amount.of.Silicon.dioxide ~ newdata_politicalparties$Politicalparties_seat , type = "Chow")
+
+sctest(newdata_politicalparties$Amount.of.Silicon.dioxide ~ newdata_politicalparties$Winning_Margin , type = "Chow")
+
+
+sctest(newdata_politicalparties$Amount.of.Silicon.dioxide ~ newdata_politicalparties$Factories , type = "Chow")
+
+
+
+data <- newdata_politicalparties
+t.test(params)
+t.test(data$Amount.of.Silicon.dioxide, mu = 2, alternative = 'greater')
+wilcox.test(data$Amount.of.Silicon.dioxide, exact = FALSE)
+wilcox.test(data$Amount.of.Silicon.dioxide,data$Deaths)
+cor.test(data$Amount.of.Silicon.dioxide,data$Deaths)
+var.test(data$Amount.of.Silicon.dioxide,data$Deaths)
+var.test(data$Amount.of.Silicon.dioxide,data$Deaths, alternative = "two.sided")
+
+t.test(data$Amount.of.Silicon.dioxide,data$Politicalparties_seat)
+wilcox.test(data$Amount.of.Silicon.dioxide,data$Politicalparties_seat)
+cor.test(data$Amount.of.Silicon.dioxide,data$Politicalparties_seat)
+var.test(data$Amount.of.Silicon.dioxide,data$Politicalparties_seat)
+var.test(data$Amount.of.Silicon.dioxide,data$Politicalparties_seat, alternative = "two.sided")
+
+
+t.test(data$Amount.of.Silicon.dioxide, data$Winning_Margin)
+wilcox.test(data$Amount.of.Silicon.dioxide, data$Winning_Margin)
+cor.test(data$Amount.of.Silicon.dioxide, data$Winning_Margin)
+var.test(data$Amount.of.Silicon.dioxide,data$Winning_Margin)
+var.test(data$Amount.of.Silicon.dioxide,data$Winning_Margin, alternative = "two.sided")
+
+
+t.test(data$Amount.of.Silicon.dioxide,data$Factories)
+wilcox.test(data$Amount.of.Silicon.dioxide,data$Factories)
+cor.test(data$Amount.of.Silicon.dioxide,data$Factories)
+var.test(data$Amount.of.Silicon.dioxide,data$Factories)
+var.test(data$Amount.of.Silicon.dioxide,data$Factories, alternative = "two.sided")
+         
+
+
+
+         
+
+
+### Monte Carlo Simulations ###
+
+model <- lm(Amount.of.Silicon.dioxide ~ sdp, data = newdata_politicalparties)
+summary(model)
+
+library(pacman) # wraps library and package related functions to improve workflow 
+pacman::p_load(data.table, fixest, stargazer, dplyr, magrittr) 
+
+beta_0 = 1.238e+01
+beta_1 = -6.826e-06
+
+set.seed(1)  # Seed
+n = 1000     # Sample size
+M = 500      # Number of experiments/iterations
+
+## Storage vectors
+slope_DT <- rep(0,M) # 0 is repeated M times in a vector
+intercept_DT <- rep(0,M) # 0 is repeated M times in a vector
+
+## Begin Monte Carlo
+
+for (i in 1:M){ #  M is the number of iterations
+  
+  # Generate data
+  U_i = rnorm(n, mean = 0, sd = 2) # Error
+  X_i = rnorm(n, mean = 5, sd = 5) # Independent or Explanatory variable
+  Y_i = beta_0 + beta_1*X_i + U_i  # Dependent variable
+  
+  # Formulate data.table
+  data_i = data.table(Y = Y_i, X = X_i)
+  
+  # Run regressions
+  ols_i <- fixest::feols(data = data_i, Y ~ X)
+  
+  # Extract slope coefficient and save
+  slope_DT[i] <- ols_i$coefficients[2]
+  intercept_DT[i] <- ols_i$coefficients[1]
+  
+}
+
+
+# Summary statistics
+estimates_DT <- data.table(beta_1 = slope_DT, beta_0 = intercept_DT)
+stargazer(estimates_DT[, c("beta_1", "beta_0")], type = "text")
+
+# Visual inspection
+hist(estimates_DT[, beta_1], xlim = c(-0.04, 0.04), ylim = c(0,200))
+
+
+
+
+
+
+
+
+
+
+
+## State Gini effect
+#Gini-state merging
+ginis <- read.csv("C:/Users/harsh/OneDrive/Documents/Econometrics/gini_state_data.csv")
+View(ginis)
+
+ginis$State <- toupper(ginis$State)
+newdata_ginis <- merge(x = newdata_politicalparties, y = ginis, by = "State")
+
+View(newdata_ginis)
+
+ginis_lm <- lm((Amount.of.Silicon.dioxide) ~ sdp +(sdp_2) + sdp_3 + Gini_state + Politicalparties_seat + Factories + Winning_Margin + Deaths, data = newdata_ginis)
+summary(ginis_lm)
+
+summary(politicalparties_lm)
+
+## Statewise subsets
+
+North_state_group = list('Jammu and Kashmir', 'Haryana', 'Bihar', 'Delhi', 'Uttrakhand', 'Himachal Pradesh', 'Chandigarh', 'Uttar Pradesh', 'Chattisgarh', 'Jharkhand' )
+South_state_group = list('Karnataka' ,'Kerala', 'Andhra Pradesh', 'Puducherry', 'Tamil Nadu', 'Telangana', 'Goa', 'Maharashtra', 'Dadra and Nagar Haveli', 'Gujrat', 'Rajasthan')
+Central_state_group = list('Chattisgarh', 'Jharkhand')
+East_state_group = list('West Bengal',	'Arunachal Pradesh',	'Assam', 	'Manipur',	'Meghalaya',	'Mizoram',	'Nagaland',	'Odisha', 	'Sikkim',	'Tripura') 
+West_state_group = list('Maharashtra', 'Dadra and Nagar Haveli', 'Gujrat', 'Rajasthan')
+
+subset_North_state_group <- newdata_ginis[newdata_ginis$State %in% North_state_group,]
+subset_South_state_group <- newdata_ginis[newdata_ginis$State %in% South_state_group,]
+subset_Central_state_group <- newdata_ginis[newdata_ginis$State %in% Central_state_group,]
+subset_East_state_group <- newdata_ginis[newdata_ginis$State %in% East_state_group,]
+subset_West_state_group <- newdata_ginis[newdata_ginis$State %in% West_state_group,]
+
+
+
+library(strucchange)
+
+data <- subset_South_state_group
+
+
+data$Amount.of.Silicon.dioxide <- as.numeric(data$Amount.of.Silicon.dioxide)
+data$Deaths <- as.numeric(data$Deaths)
+
+params = data$Amount.of.Silicon.dioxide ~ data$Deaths + data$Politicalparties_seat + data$Winning_Margin + data$Factories
+
+sctest(params, type = "Chow")
+
+sctest(data$Amount.of.Silicon.dioxide ~ data$Politicalparties_seat , type = "Chow")
+
+sctest(data$Amount.of.Silicon.dioxide ~ data$Winning_Margin , type = "Chow")
+
+
+sctest(data$Amount.of.Silicon.dioxide ~ data$Factories , type = "Chow")
+
+
+t.test(params)
+t.test(data$Amount.of.Silicon.dioxide, mu = 2, alternative = 'greater')
+wilcox.test(data$Amount.of.Silicon.dioxide, exact = FALSE)
+wilcox.test(data$Amount.of.Silicon.dioxide,data$Deaths)
+cor.test(data$Amount.of.Silicon.dioxide,data$Deaths)
+var.test(data$Amount.of.Silicon.dioxide,data$Deaths)
+var.test(data$Amount.of.Silicon.dioxide,data$Deaths, alternative = "two.sided")
+
+t.test(data$Amount.of.Silicon.dioxide,data$Politicalparties_seat)
+wilcox.test(data$Amount.of.Silicon.dioxide,data$Politicalparties_seat)
+cor.test(data$Amount.of.Silicon.dioxide,data$Politicalparties_seat)
+var.test(data$Amount.of.Silicon.dioxide,data$Politicalparties_seat)
+var.test(data$Amount.of.Silicon.dioxide,data$Politicalparties_seat, alternative = "two.sided")
+
+
+t.test(data$Amount.of.Silicon.dioxide, data$Winning_Margin)
+wilcox.test(data$Amount.of.Silicon.dioxide, data$Winning_Margin)
+cor.test(data$Amount.of.Silicon.dioxide, data$Winning_Margin)
+var.test(data$Amount.of.Silicon.dioxide,data$Winning_Margin)
+var.test(data$Amount.of.Silicon.dioxide,data$Winning_Margin, alternative = "two.sided")
+
+
+t.test(data$Amount.of.Silicon.dioxide,data$Factories)
+wilcox.test(data$Amount.of.Silicon.dioxide,data$Factories)
+cor.test(data$Amount.of.Silicon.dioxide,data$Factories)
+var.test(data$Amount.of.Silicon.dioxide,data$Factories)
+var.test(data$Amount.of.Silicon.dioxide,data$Factories, alternative = "two.sided")
+
+
+write.csv(newdata_ginis, file = "Final_Data_.csv", row.names = FALSE)
